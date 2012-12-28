@@ -1,0 +1,4 @@
+quirky
+======
+
+SQL query debreviator
