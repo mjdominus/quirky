@@ -1,0 +1,138 @@
+                  WHY ARE SIMPLE QUERIES SO VERBOSE?
+
+For example:
+
+        UPDATE batches b
+          join products p using (product_id)
+          join clients c using (client_id)
+        SET b.scheduled_date = NOW()
+        WHERE b.scheduled_date > NOW()
+          and b.batch_processor = 'nacha'
+          and c.login_name = 'volusia' ;
+
+          (208 ch)
+
+I guess about two-thirds of this is unavoidable, but those join-using
+clauses ought to be omittable, or inferrable, or abbreviatable, or
+something.
+
+b.batch_processor should be abbreviated to at least
+"batch_processsor", since that's the only field in those three tables
+with that name.  In fact it could probably be inferred from
+"b_p". Similarly "c.login_name" -> "login_name" -> "log" or "l_n".
+
+       update batches set sch_d = NOW()
+       where sch_d > NOW() 
+       and bp = 'nacha'
+       and cl.ln = 'volusia'
+
+       (94 ch)
+
+cl.ln is inferrable: Only two tables begin with "cl".  None of the
+field names in the 'client_nacha_transaction_view' table look like
+"ln".  So "cl.ln" unambiguously means "client.login_name".
+
+Then the question arises of how to join the batches to the clients.
+This is the only really interesting part of this project, and the
+basic rule is that it shouldn't do anything really clever.  There is a
+graph, which the program can figure out from looking at the foreign
+key constraints.  And the graph should clearly have a short path from
+batches through products to clients.
+
+"bp" might be globally ambiguous, but it can be disambiguated by
+assuming it's in one of the three tables involved.
+
+If something *is* truly ambiguous, we can issue an intelligent request
+for clarification:
+
+    "bp" is ambiguous. Did you mean:
+      1. batches.batch_processor
+      2. batches.bun_predictor
+      0. None of the above
+    which? _
+
+----------------------------------------------------------------
+
+OVERVIEW
+
+1. Debreviate table names
+2. Figure out required joins and join fields
+3. Debreviate field names
+
+Can 1 and 2 really be separated? They can in the example above, but
+maybe not in general. 
+
+I think separating 3 and putting it at the end is a good idea: don't
+try to use field name abbreviations to disambiguate and debreviate
+table names. Only go the other way.  But this means that we can't
+debreviate "cl", since it might be 'client_nacha_transaction_view'.
+
+
+----------------------------------------------------------------
+
+ABOUT ABBREVIATIONS
+
+Abbreviations for "batch_processor":
+
+              bp
+              b_p
+              ba_pr
+              batch_p
+
+There is a tradeoff here: the more different kinds of abbreviations
+you accept, the more likely there are to be ambiguities.
+              
+              
+----------------------------------------------------------------
+
+ABOUT TABLE INFERENCE
+
+There could also be a preferences file that lists precedences for
+tables and fields: if it lists "clients", then anything that could
+debreviate to "clients" or to "client_nacha_transaction_view"
+automatically debreviates to "clients". The first iteration could just
+be a list of table names.
+
+----------------------------------------------------------------
+
+ABOUT JOIN INFERENCE
+
+Short join paths are preferred to long join paths.
+
+If it takes a long time to generate the join graph, cache it.  Build
+it automatically on the first run, and then rebuild it on request
+later on.
+
+----------------------------------------------------------------
+
+MORE EXAMPLES
+
+----------------------------------------------------------------
+
+IMPLEMENTATION NOTES
+
+Convert the input to a SQL::Abstract first, then walk the resulting
+structure, first debreviating names, then inserting joins, then
+debreviating the rest of the names. Then you can output the text
+version of the result if you want to.
+
+Note that this requires that the input be valid SQL. Your original
+idea for the abbreviated QSL began with
+
+       update set batches.sch_d = NOW()
+
+rather than
+
+       update batches set sch_d = NOW()
+
+but the original version would probably be ruled out by this
+implementation.  In this case that is not a big deal, but this choice
+of implementation might rule out more desirable abbreviations in the
+future.
+
+----------------------------------------------------------------
+
+MISCELLANEOUS NOTES
+
+
+
