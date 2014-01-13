@@ -134,5 +134,15 @@ future.
 
 MISCELLANEOUS NOTES
 
+(In the original document this section was blank. I have added her
+some notes I made in pen on an unknown date.)
+
+
+Maybe also abbreviate update => u, where => w, and => &.  This cuts
+the abbreviated query from 94 to 75 characters.
+
+Since debreviation is easier [than join inference] do it first!
+
+Another idea: "id" always means the main table's primary key field.
 
 
